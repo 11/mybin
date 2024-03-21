@@ -72,6 +72,7 @@ class NetworkInfo:
         return '\t'.join(cols)
 
 
+def get_network_info(ifname: str = 'en0') -> NetworkInfo:
     cmd = f'ifconfig {ifname}'
     output = subprocess \
             .check_output(cmd, shell=True) \
@@ -107,7 +108,7 @@ def set_mac(mac: str, ifname: str = 'en0'):
 
         cmd = ';'.join([
             '/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -z', # disasocciate from network
-            f'ifconfig {ifname} ether {mac}' # set new macc address
+            f'ifconfig {ifname} ether {mac}' # set new mac address
         ])
         subprocess.check_call(cmd, shell=True)
         
@@ -171,6 +172,7 @@ def validate_address(mac: str):
     if valid == False:
         print(f'Invlaid MAC address {mac} - address bit too large `:{invalid_bit:x}`', file=sys.stderr)
         sys.exit(1)
+
 
 if __name__ == '__main__':
     parser = ArgumentParser(prog='macaddr', description='Wrapper CLI tool for MAC address commands')
