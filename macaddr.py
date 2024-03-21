@@ -1,6 +1,11 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
+# Author: Doug Rudolph (github.com/11)
+# Date: Mar. 21, 2024
+# Description: MAC address spoofer for macbooks
+
+
 import sys
 import subprocess
 import time
