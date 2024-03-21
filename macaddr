@@ -78,7 +78,6 @@ def get_network_info(ifname: str = 'en0') -> NetworkInfo:
             .check_output(cmd, shell=True) \
             .decode('utf-8') \
             .split('\n')
-    
 
     keys = ['ether', 'inet ', 'inet6 ', 'status:']
     lines = [line.strip() for line in output if any(line.strip().startswith(key) for key in keys)]
