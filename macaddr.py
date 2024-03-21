@@ -9,6 +9,7 @@
 import sys
 import subprocess
 import time
+import socket
 from argparse import ArgumentParser, BooleanOptionalAction
 from typing import List, TypedDict
 from random import randint
@@ -47,51 +48,87 @@ apple_mac_address_prefixes = [
 
 
 class NetworkInfo:
-    ifname: str | None
-    ip4: str
-    mac: str
-
-    def __init__(self, ip4, mac, ifname = None):
-        self.ifname = ifname
+    def __init__(self, ifname, ip4, mac, status):
+        """
+        Args:
+            ifname (str): Network interface name
+            ip4 (str | None): IPv4 address
+            mac (str | None): MAC Address
+            status (str | None): active or inactive
+        """
         self.ip4 = ip4
         self.mac = mac
+        self.ifname = ifname
+        self.status = status
     
     def __repr__(self):
-        output = f'IPv4: {self.ip4}\nMAC: {self.mac}'
-        if self.ifname is not None:
-            return f'{ifname}\n' + output 
-        
-        return output
+        cols = [
+            f'{self.ifname}\t', 
+            self.mac or 'None\t\t', 
+            f'{self.ip4}\t' if self.ip4 else 'None\t\t', 
+            self.status or 'None'
+        ]
+
+        return '\t'.join(cols)
 
 
-def get_network_info(ifname: str = 'en0') -> NetworkInfo:
-    cmd = 'ifconfig en0'
-    res = subprocess \
+    cmd = f'ifconfig {ifname}'
+    output = subprocess \
             .check_output(cmd, shell=True) \
             .decode('utf-8') \
             .split('\n')
+    
 
-    mac = res[2].strip().split(' ')[1]
-    ip4 = res[3].strip().split(' ')[1]
+    keys = ['ether', 'inet ', 'inet6 ', 'status:']
+    lines = [line.strip() for line in output if any(line.strip().startswith(key) for key in keys)]
+    if len(lines) < 2:
+        return None
 
-    netinfo = NetworkInfo(ip4, mac)
+    info = {}
+    for line in lines:
+        row = line \
+            .replace(': ', ' ') \
+            .split(' ')
+        key = row[0]
+        val = row[1]
+        info[key] = val
+    
+    mac = info.get('ether', None)
+    ip4 = info.get('inet', None)
+    status = info.get('status', None)
+
+    netinfo = NetworkInfo(ifname, ip4, mac, status)
     return netinfo
 
 
-def set_mac(mac = str, ifname: str = 'en0'):
+def set_mac(mac: str, ifname: str = 'en0'):
     try:
-        old_info = get_network_info()
+        old_info = get_network_info(ifname)
 
         cmd = ';'.join([
             '/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -z', # disasocciate from network
-            f'ifconfig {ifname} ether {mac}'
+            f'ifconfig {ifname} ether {mac}' # set new macc address
         ])
         subprocess.check_call(cmd, shell=True)
         
-        new_info = get_network_info()
+        new_info = get_network_info(ifname)
         print(f'{old_info.mac} => {new_info.mac}')
     except Exception as err:
         raise err
+
+
+def list_all_interface_info():
+    net_infos = []
+
+    ifnames = socket.if_nameindex()
+    for _, name in ifnames:
+        netinfo = get_network_info(name)
+        if netinfo is not None:
+            net_infos.append(netinfo)
+            
+    print('Interface\tMAC Address\t\tIPv4\t\t\tStatus')
+    for net in net_infos:
+        print(net)
 
 
 def unsafe_mac_rotate() -> str:
@@ -137,14 +174,16 @@ def validate_address(mac: str):
 
 if __name__ == '__main__':
     parser = ArgumentParser(prog='macaddr', description='Wrapper CLI tool for MAC address commands')
-    parser.add_argument('-r', '--rotate', type=bool, default=False, help='Generate new MAC address with a known Apple MAC address prefix', action=BooleanOptionalAction)
-    parser.add_argument('-u', '--unsafe-rotate', type=bool, default=False, help='Generate a completely random MAC addreess', action=BooleanOptionalAction)
-    parser.add_argument('-a', '--address', type=str, default=None, help='MAC address you\' want to chnage it to')
+    parser.add_argument('-r', '--rotate', type=bool, default=False, action=BooleanOptionalAction, help='Generate new MAC address with a known Apple MAC address prefix')
+    parser.add_argument('-u', '--unsafe-rotate', type=bool, default=False, action=BooleanOptionalAction, help='Generate a completely random MAC addreess')
+    parser.add_argument('-l', '--list-all', type=bool, default=False, action=BooleanOptionalAction, help='Show mac address of all network interfaces')
+    parser.add_argument('-a', '--address', type=str, default=None, help='New MAC address ')
     parser.add_argument('-i', '--interface', type=str, default='en0', help='Name of tunnel')
     args = vars(parser.parse_args())
     
     rotate = args['rotate']
     unsafe_rotate = args['unsafe_rotate']
+    list_all = args['list_all']
     address = args['address']
     interface = args['interface']
 
@@ -160,6 +199,8 @@ if __name__ == '__main__':
         new_mac = unsafe_mac_rotate()
         validate_address(new_mac)
         set_mac(new_mac, interface)
+    elif list_all:
+        list_all_interface_info()
     else:
         info = get_network_info()
         print(info.mac)
