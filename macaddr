@@ -175,12 +175,12 @@ def validate_address(mac: str):
 
 
 if __name__ == '__main__':
-    parser = ArgumentParser(prog='macaddr', description='Wrapper CLI tool for MAC address commands')
-    parser.add_argument('-r', '--rotate', type=bool, default=False, action=BooleanOptionalAction, help='Generate new MAC address with a known Apple MAC address prefix')
-    parser.add_argument('-u', '--unsafe-rotate', type=bool, default=False, action=BooleanOptionalAction, help='Generate a completely random MAC addreess')
-    parser.add_argument('-l', '--list-all', type=bool, default=False, action=BooleanOptionalAction, help='Show mac address of all network interfaces')
-    parser.add_argument('-a', '--address', type=str, default=None, help='New MAC address ')
-    parser.add_argument('-i', '--interface', type=str, default='en0', help='Name of tunnel')
+    parser = ArgumentParser(prog='macaddr', description='MAC address helper')
+    parser.add_argument('-r', '--rotate', type=bool, default=False, action=BooleanOptionalAction, help='generate new MAC address with a valid Apple prefix')
+    parser.add_argument('-R', '--unsafe-rotate', type=bool, default=False, action=BooleanOptionalAction, help='generate a completely random MAC address')
+    parser.add_argument('-l', '--list-all', type=bool, default=False, action=BooleanOptionalAction, help='show mac address of all network interfaces')
+    parser.add_argument('-a', '--address', type=str, default=None, help='manually set MAC address')
+    parser.add_argument('-i', '--interface', type=str, default='en0', help='specify which network-interface MAC address to change')
     args = vars(parser.parse_args())
     
     rotate = args['rotate']
