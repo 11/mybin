@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
+import sys
 import subprocess
 import time
 from argparse import ArgumentParser, BooleanOptionalAction
@@ -111,13 +112,23 @@ def mac_rotate() -> str:
     ])
 
 
-def validate_address(mac: str) -> bool:
+def validate_address(mac: str):
     bits = [int(bit, 16) for bit in mac.split(':')]
+    if len(bits) > 6:
+        print(f'Invlaid MAC address {mac} - address can only be 6 bits long', file=sys.stderr)
+        sys.exit(1)
+
+    valid = True
+    invalid_bit = None
     for bit in bits:
         if bit > 255:
-            return False
-    return True
+            valid = False
+            invalid_bit = bit
+            break
 
+    if valid == False:
+        print(f'Invlaid MAC address {mac} - address bit too large `:{invalid_bit:x}`', file=sys.stderr)
+        sys.exit(1)
 
 if __name__ == '__main__':
     parser = ArgumentParser(prog='macaddr', description='Wrapper CLI tool for MAC address commands')
@@ -132,17 +143,18 @@ if __name__ == '__main__':
     address = args['address']
     interface = args['interface']
 
-    if address is not None and validate_address(address):
+    if address is not None: 
+        validate_address(address)
         new_mac = address
         set_mac(new_mac, interface)
     elif rotate:
         new_mac = mac_rotate()
-        if validate_address(new_mac):
-            set_mac(mac_rotate(), interface)
+        validate_address(new_mac)
+        set_mac(new_mac, interface)
     elif unsafe_rotate:
         new_mac = unsafe_mac_rotate()
-        if validate_address(new_mac):
-            set_mac(unsafe_mac_rotate(), interface)
+        validate_address(new_mac)
+        set_mac(new_mac, interface)
     else:
         info = get_network_info()
         print(info.mac)
