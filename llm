@@ -16,6 +16,8 @@ import os
 import json
 import sys
 from pprint import pprint
+from pathlib import Path
+from typing import List
 from urllib import request, error
 from argparse import ArgumentParser, BooleanOptionalAction
 
@@ -102,6 +104,14 @@ def create_argparser() -> ArgumentParser:
         help='Enable verbose output'
     )
 
+    prompt_cmd.add_argument(
+        '-f',
+        '--files',
+        type=Path,
+        nargs='*',
+        help='Optional file paths to read and append to prompt. Use $1, $2, etc. in prompt to specify file placement. If no placement specified, files are appended in order.'
+    )
+
     return parser
 
 
@@ -131,19 +141,58 @@ def fetch(url: str, method: str = 'POST', headers: dict | None = None, body: dic
         return f'URL Error: {err.reason}'
 
 
+def read_file(file: Path | None) -> str:
+    """Read contents of a file and return as string. Returns empty string if file is None."""
+    if file is None:
+        sys.exit(1)
+
+    if not file.exists():
+        print(f'Warning: File not found: {file}', file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        return file.read_text()
+    except Exception as e:
+        print(f'Error reading file {file}: {e}', file=sys.stderr)
+        sys.exit(1)
+
+
 #
 # LLM REQUEST FUNCTIONS
 #
 
 
-def openai_request(prompt: str, model: str, output: str, tokens: int, entropy: float, role: str, verbose: bool = False):
-    """ OpenAI chat request """
+def openai_request(prompt: str, model: str, output: str, tokens: int, entropy: float, role: str, files: List[Path] | None, verbose: bool = False):
 
+    # Check to make sure OPENAI_API_KEY is set
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', None)
     if OPENAI_API_KEY is None:
         print('Could not find `OPENAI_API_KEY` environment variable', file=sys.stderr)
-        return
+        sys.exit(1)
 
+    # Find and replace text from file into prompt
+    file_data = [(idx, file.stem, file.name, read_file(file)) for idx, file in enumerate(files)]
+    print(file_data)
+
+    found_placeholders = [False] * len(file_data)
+    for (idx, stem, _, content) in file_data:
+        name_placeholder = f'${stem.upper()}'
+        name_placeholder2 = f'${stem.lower()}'
+        index_placeholder = f'${idx+1}'
+        found_placeholders[idx] = name_placeholder in prompt or name_placeholder2 in prompt or index_placeholder in prompt
+
+        prompt = prompt.replace(name_placeholder, content)
+        prompt = prompt.replace(name_placeholder2, content)
+        prompt = prompt.replace(index_placeholder, content)
+
+    # If no placeholders found in prompt, append file data to end of file
+    for idx, found in enumerate(found_placeholders):
+        if found: continue;
+        name = file_data[idx][2]
+        data = file_data[idx][3]
+        prompt += f'\n{name}:\n{data}'
+
+    # OpenAI request information
     url = 'https://api.openai.com/v1/chat/completions'
 
     headers = {
@@ -163,22 +212,26 @@ def openai_request(prompt: str, model: str, output: str, tokens: int, entropy: f
         },
     }
 
+    # Print request information when verbose
     if verbose:
-        msg = '\n'.join([
-            f'POST - {url}',
-            'Headers:',
-            *[f'  {k}: {v}' for k, v in headers.items()],
-            'Body:',
-            *[f'  {k}: {v}' for k, v in body.items()],
-        ])
-        print(msg)
+        params = {'model': model, 'output': output, 'tokens': tokens, 'entropy': entropy, 'role': role, 'files': files, 'prompt': prompt.split('\n')}
+        print("\n#openai_request:")
+        for arg_name, arg_value in params.items():
+            if arg_name == 'prompt':
+                print(f'  {arg_name}: {"\n      ".join(arg_value)}')
+            else:
+                print(f'  {arg_name}: {arg_value}')
         print()
 
+    # Make request
     res = fetch(url, method='POST', headers=headers, body=body)
+
+    # Print OpenAI response when verbose
     if verbose:
-        pprint(res)
+        print(json.dumps(res, sort_keys=True, indent=4))
         return
 
+    # Print response in format specified in command
     msg = res['choices'][0]['message']['content']
     if output == 'json':
         data = json.loads(msg)
