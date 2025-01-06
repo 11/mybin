@@ -56,7 +56,7 @@ def create_argparser() -> ArgumentParser:
         type=str,
         choices=['gpt-4', 'gpt-4o-mini', 'gpt-4o'],
         default='gpt-4o-mini',
-        help='AI model - defaults to `gpt-3.5-turbo`'
+        help='AI model - defaults to `gpt-4o-mini`'
     )
 
     prompt_cmd.add_argument(
@@ -172,7 +172,6 @@ def openai_request(prompt: str, model: str, output: str, tokens: int, entropy: f
 
     # Find and replace text from file into prompt
     file_data = [(idx, file.stem, file.name, read_file(file)) for idx, file in enumerate(files)]
-    print(file_data)
 
     found_placeholders = [False] * len(file_data)
     for (idx, stem, _, content) in file_data:
