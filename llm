@@ -12,10 +12,9 @@ import sys
 from enum import Enum
 from urllib import request, parse, error
 from argparse import ArgumentParser, BooleanOptionalAction
-from typing import List, TypedDict
 
 
-def fetch(url: str, method: str ='POST', headers: dict | None = None, body: dict | None = None):
+def fetch(url: str, method: str = 'POST', headers: dict | None = None, body: dict | None = None):
     if body:
         body = json.dumps(body).encode('utf-8')
 
