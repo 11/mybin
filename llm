@@ -170,6 +170,9 @@ def openai_request(prompt: str, model: str, output: str, tokens: int, entropy: f
         print('Could not find `OPENAI_API_KEY` environment variable', file=sys.stderr)
         sys.exit(1)
 
+    # Initialize files to empty list if None
+    files = files or []
+
     # Find and replace text from file into prompt
     file_data = [(idx, file.stem, file.name, read_file(file)) for idx, file in enumerate(files)]
 
