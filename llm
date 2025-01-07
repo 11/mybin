@@ -27,6 +27,56 @@ from argparse import ArgumentParser, BooleanOptionalAction
 #
 
 
+def find_and_replace(prompt: str, files: List[Path] | None) -> str:
+    """
+    Find and replace variables in prompt with data from file,
+    otherwise append uninjected file text to end of prompt
+    """
+    # Initialize files to empty list if None
+    files = files or []
+
+    # Find and replace text from file into prompt
+    file_data = [
+        (idx, file.stem, file.name, read_file(file))
+        for idx, file in enumerate(files)
+    ]
+
+    found_placeholders = [False] * len(file_data)
+    for (idx, stem, _, content) in file_data:
+        name_placeholder = f'${stem.upper()}'
+        name_placeholder2 = f'${stem.lower()}'
+        index_placeholder = f'${idx+1}'
+        found_placeholders[idx] = name_placeholder in prompt or name_placeholder2 in prompt or index_placeholder in prompt
+
+        prompt = prompt.replace(name_placeholder, content)
+        prompt = prompt.replace(name_placeholder2, content)
+        prompt = prompt.replace(index_placeholder, content)
+
+    # If no placeholders found in prompt, append file data to end of file
+    for idx, found in enumerate(found_placeholders):
+        if found:
+            continue
+
+        name = file_data[idx][2]
+        data = file_data[idx][3]
+        prompt += f'\n{name}:\n{data}'
+
+    return prompt
+
+
+def print_inputs(prompt: str, model: str, output: str, tokens: int, entropy: float, role: str, files: List[Path] | None, verbose: bool = False):
+    params = locals()
+    params['prompt'] = prompt.split('\n')
+
+    print("\nInputs:")
+    for arg_name, arg_value in params.items():
+        if arg_name == 'prompt':
+            print(f'  {arg_name}: {"\n      ".join(arg_value)}')
+        else:
+            print(f'  {arg_name}: {arg_value}')
+    print()
+
+
 def create_argparser() -> ArgumentParser:
     parser = ArgumentParser(prog='llm', description='LLM CLI')
     subparsers = parser.add_subparsers(dest='command', required=True)
@@ -177,72 +227,30 @@ def read_file(file: Path | None) -> str:
 #
 
 
-def openai_request(prompt: str, model: str, output: str, tokens: int, entropy: float, role: str, files: List[Path] | None, verbose: bool = False):
-    # Check to make sure OPENAI_API_KEY is set
+def openai_request(prompt: str, model: str, output: str, tokens: int, entropy: float, role: str, verbose: bool = False):
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', None)
     if OPENAI_API_KEY is None:
         print('Could not find `OPENAI_API_KEY` environment variable', file=sys.stderr)
         sys.exit(0)
 
-    # Initialize files to empty list if None
-    files = files or []
-
-    # Find and replace text from file into prompt
-    file_data = [(idx, file.stem, file.name, read_file(file)) for idx, file in enumerate(files)]
-
-    found_placeholders = [False] * len(file_data)
-    for (idx, stem, _, content) in file_data:
-        name_placeholder = f'${stem.upper()}'
-        name_placeholder2 = f'${stem.lower()}'
-        index_placeholder = f'${idx+1}'
-        found_placeholders[idx] = name_placeholder in prompt or name_placeholder2 in prompt or index_placeholder in prompt
-
-        prompt = prompt.replace(name_placeholder, content)
-        prompt = prompt.replace(name_placeholder2, content)
-        prompt = prompt.replace(index_placeholder, content)
-
-    # If no placeholders found in prompt, append file data to end of file
-    for idx, found in enumerate(found_placeholders):
-        if found: continue;
-        name = file_data[idx][2]
-        data = file_data[idx][3]
-        prompt += f'\n{name}:\n{data}'
-
-    # OpenAI request information
-    url = 'https://api.openai.com/v1/chat/completions'
-
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {OPENAI_API_KEY}',
-    }
-
-    body = {
-        'model': model,
-        'messages': [{ 'role': role, 'content': prompt }],
-        'temperature': entropy,
-        'max_completion_tokens': tokens,
-        'response_format': {
-            'type': 'json_object'
-                if output == 'json'
-                else output
+    res = fetch(
+        'https://api.openai.com/v1/chat/completions',
+        method='POST',
+        headers={
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {OPENAI_API_KEY}',
         },
-    }
+        body={
+            'model': model,
+            'messages': [{ 'role': role, 'content': prompt }],
+            'temperature': entropy,
+            'max_completion_tokens': tokens,
+            'response_format': {
+                'type': 'json_object' if output == 'json' else output
+            },
+        }
+    )
 
-    # Print request information when verbose
-    if verbose:
-        params = {'model': model, 'output': output, 'tokens': tokens, 'entropy': entropy, 'role': role, 'files': files, 'prompt': prompt.split('\n')}
-        print("\n#openai_request:")
-        for arg_name, arg_value in params.items():
-            if arg_name == 'prompt':
-                print(f'  {arg_name}: {"\n      ".join(arg_value)}')
-            else:
-                print(f'  {arg_name}: {arg_value}')
-        print()
-
-    # Make request
-    res = fetch(url, method='POST', headers=headers, body=body)
-
-    # Print OpenAI response when verbose
     if verbose:
         print(json.dumps(res, sort_keys=True, indent=4))
         return
@@ -281,10 +289,15 @@ def env(verbose: bool = False):
 
 
 def chat(prompt: str, model: str, output: str, tokens: int, entropy: float, role: str, files: List[Path] | None, verbose: bool = False):
+    prompt = find_and_replace(prompt, files)
+    if verbose:
+        params = locals()
+        print_inputs(**params)
+
     match model:
         case 'gpt-4' | 'gpt-4o-mini' | 'gpt-4o':
             params = locals()
-            openai_request(**params)
+            openai_request(prompt, model, output, tokens, entropy, role, verbose)
         case 'claude-3-5-sonnet-latest' | 'claude-3-5-haiku-latest' |'claude-3-opus-latest':
             print('NOT_YET_IMPLEMENTED_ERROR: API call not yet implemented for Anthropic')
         case 'gemini-1.5-flash' |'gemini-1.5-flash-8b' | 'gemini-1.5-pro':
