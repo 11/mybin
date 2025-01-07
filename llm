@@ -54,7 +54,22 @@ def create_argparser() -> ArgumentParser:
         '-m',
         '--model',
         type=str,
-        choices=['gpt-4', 'gpt-4o-mini', 'gpt-4o'],
+        choices=[
+            # openai models
+            'gpt-4',
+            'gpt-4o-mini',
+            'gpt-4o',
+
+            # anthropic models
+            'claude-3-5-sonnet-latest',
+            'claude-3-5-haiku-latest',
+            'claude-3-opus-latest',
+
+            # gemini models
+            'gemini-1.5-flash',
+            'gemini-1.5-flash-8b',
+            'gemini-1.5-pro',
+        ],
         default='gpt-4o-mini',
         help='AI model - defaults to `gpt-4o-mini`'
     )
@@ -247,7 +262,7 @@ def openai_request(prompt: str, model: str, output: str, tokens: int, entropy: f
 #
 
 
-def list_found_environment_variables(verbose: bool = False):
+def env(verbose: bool = False):
     """ List out `found` and `missing` LLM API environment variables """
     services = {
         'Anthropic': os.environ.get('ANTHROPIC_API_KEY', None),
@@ -265,6 +280,17 @@ def list_found_environment_variables(verbose: bool = False):
             print(f'{service:<{padding}}\t{status}')
 
 
+def chat(prompt: str, model: str, output: str, tokens: int, entropy: float, role: str, files: List[Path] | None, verbose: bool = False):
+    match model:
+        case 'gpt-4' | 'gpt-4o-mini' | 'gpt-4o':
+            params = locals()
+            openai_request(**params)
+        case 'claude-3-5-sonnet-latest' | 'claude-3-5-haiku-latest' |'claude-3-opus-latest':
+            print('NOT_YET_IMPLEMENTED_ERROR: API call not yet implemented for Anthropic')
+        case 'gemini-1.5-flash' |'gemini-1.5-flash-8b' | 'gemini-1.5-pro':
+            print('NOT_YET_IMPLEMENTED_ERROR: API call not yet implemented for Gemini')
+
+
 def main():
     try:
         parser = create_argparser()
@@ -275,12 +301,12 @@ def main():
                 params = vars(args)
                 del params['command']
 
-                list_found_environment_variables(**params)
+                env(**params)
             case 'chat':
                 params = vars(args)
                 del params['command']
 
-                openai_request(**params)
+                chat(**params)
     except KeyboardInterrupt:
         sys.exit(1)
 
