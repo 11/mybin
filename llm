@@ -144,17 +144,17 @@ def fetch(url: str, method: str = 'POST', headers: dict | None = None, body: dic
 def read_file(file: Path | None) -> str:
     """Read contents of a file and return as string. Returns empty string if file is None."""
     if file is None:
-        sys.exit(1)
+        sys.exit(0)
 
     if not file.exists():
         print(f'Warning: File not found: {file}', file=sys.stderr)
-        sys.exit(1)
+        sys.exit(0)
 
     try:
         return file.read_text()
     except Exception as e:
         print(f'Error reading file {file}: {e}', file=sys.stderr)
-        sys.exit(1)
+        sys.exit(0)
 
 
 #
@@ -163,12 +163,11 @@ def read_file(file: Path | None) -> str:
 
 
 def openai_request(prompt: str, model: str, output: str, tokens: int, entropy: float, role: str, files: List[Path] | None, verbose: bool = False):
-
     # Check to make sure OPENAI_API_KEY is set
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', None)
     if OPENAI_API_KEY is None:
         print('Could not find `OPENAI_API_KEY` environment variable', file=sys.stderr)
-        sys.exit(1)
+        sys.exit(0)
 
     # Initialize files to empty list if None
     files = files or []
@@ -266,18 +265,25 @@ def list_found_environment_variables(verbose: bool = False):
             print(f'{service:<{padding}}\t{status}')
 
 
+def main():
+    try:
+        parser = create_argparser()
+        args = parser.parse_args()
+
+        match args.command:
+            case 'env':
+                params = vars(args)
+                del params['command']
+
+                list_found_environment_variables(**params)
+            case 'chat':
+                params = vars(args)
+                del params['command']
+
+                openai_request(**params)
+    except KeyboardInterrupt:
+        sys.exit(1)
+
+
 if __name__ == '__main__':
-    parser = create_argparser()
-    args = parser.parse_args()
-
-    match args.command:
-        case 'env':
-            params = vars(args)
-            del params['command']
-
-            list_found_environment_variables(**params)
-        case 'chat':
-            params = vars(args)
-            del params['command']
-
-            openai_request(**params)
+    main()
