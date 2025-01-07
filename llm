@@ -304,7 +304,7 @@ def chat(prompt: str, model: str, output: str, tokens: int, entropy: float, role
             print('NOT_YET_IMPLEMENTED_ERROR: API call not yet implemented for Gemini')
 
 
-def main():
+if __name__ == '__main__':
     try:
         parser = create_argparser()
         args = parser.parse_args()
@@ -322,7 +322,3 @@ def main():
                 chat(**params)
     except KeyboardInterrupt:
         sys.exit(1)
-
-
-if __name__ == '__main__':
-    main()
