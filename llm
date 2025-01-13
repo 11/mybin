@@ -179,7 +179,7 @@ def create_argparser() -> ArgumentParser:
             'gemini-1.5-pro',
         ],
         default='gpt-4o-mini',
-        help='OpenAI: gpt-4, gpt-4o-mini, gpt-4o. Anthropic: claude-3-5-sonnet-latest, claude-3-5-haiku-latest, claude-3-opus-latest. Gemini: gemini-1.5-flash, gemini-1.5-flash-8b, gemini-1.5-pro'
+        help='Defaults to gpt-4o-mini. OpenAI: gpt-4, gpt-4o-mini, gpt-4o. Anthropic: claude-3-5-sonnet-latest, claude-3-5-haiku-latest, claude-3-opus-latest. Gemini: gemini-1.5-flash, gemini-1.5-flash-8b, gemini-1.5-pro'
     )
 
     return parser
