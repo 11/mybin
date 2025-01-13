@@ -48,9 +48,9 @@ def find_and_replace(prompt: str, files: List[Path] | None) -> str:
         index_placeholder = f'${idx+1}'
         found_placeholders[idx] = name_placeholder in prompt or name_placeholder2 in prompt or index_placeholder in prompt
 
-        prompt = prompt.replace(name_placeholder, content)
-        prompt = prompt.replace(name_placeholder2, content)
-        prompt = prompt.replace(index_placeholder, content)
+        prompt = prompt.replace(name_placeholder, content.strip())
+        prompt = prompt.replace(name_placeholder2, content.strip())
+        prompt = prompt.replace(index_placeholder, content.strip())
 
     # If no placeholders found in prompt, append file data to end of file
     for idx, found in enumerate(found_placeholders):
