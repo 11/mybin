@@ -83,8 +83,9 @@ def create_argparser() -> ArgumentParser:
 
     # env command
     env_cmd = subparsers.add_parser('env', help='List found LLM environment variables')
+
     env_cmd.add_argument(
-        '-v',
+        '-V',
         '--verbose',
         type=bool,
         default=False,
@@ -94,28 +95,23 @@ def create_argparser() -> ArgumentParser:
 
     # chat command and its arguments
     prompt_cmd = subparsers.add_parser('chat', help='Send a prompt to an LLM model')
-    prompt_cmd.add_argument(
-        'prompt',
-        type=str,
-        help='Input prompt to send to model'
-    )
 
     prompt_cmd.add_argument(
         '-m',
         '--model',
         type=str,
         choices=[
-            # openai models
+            # openai text models
             'gpt-4',
             'gpt-4o-mini',
             'gpt-4o',
 
-            # anthropic models
+            # anthropic text models
             'claude-3-5-sonnet-latest',
             'claude-3-5-haiku-latest',
             'claude-3-opus-latest',
 
-            # gemini models
+            # gemini text models
             'gemini-1.5-flash',
             'gemini-1.5-flash-8b',
             'gemini-1.5-pro',
@@ -161,7 +157,7 @@ def create_argparser() -> ArgumentParser:
     )
 
     prompt_cmd.add_argument(
-        '-v',
+        '-V',
         '--verbose',
         type=bool,
         default=False,
@@ -174,7 +170,15 @@ def create_argparser() -> ArgumentParser:
         '--files',
         type=Path,
         nargs='*',
-        help='Optional file paths to read and append to prompt. Use $1, $2, etc. in prompt to specify file placement. If no placement specified, files are appended in order.'
+        help='Optional file paths to read and append to prompt. Use $1, $2, etc. in prompt to specify file placement - otherwise files are appended in order at the end of the prompt.'
+    )
+
+    prompt_cmd.add_argument(
+        '-p',
+        '--prompt',
+        type=str,
+        required=True,
+        help='Input prompt to send to model'
     )
 
     return parser
